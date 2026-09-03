@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.StopCircle
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -37,6 +38,7 @@ internal fun ProjectPreviewScreen(
     onRefreshClick: () -> Unit = {},
     onToggleBackendClick: () -> Unit = {},
     onFullscreenClick: () -> Unit = {},
+    onConsoleClick: () -> Unit = {},
     content: @Composable (Modifier) -> Unit = {}
 ) {
     val running = state.status == PreviewStatus.RUNNING
@@ -61,6 +63,12 @@ internal fun ProjectPreviewScreen(
                             Icon(
                                 Icons.Filled.Refresh,
                                 contentDescription = stringResource(R.string.preview_cd_refresh)
+                            )
+                        }
+                        IconButton(onClick = onConsoleClick) {
+                            Icon(
+                                Icons.Filled.Terminal,
+                                contentDescription = stringResource(R.string.preview_cd_console)
                             )
                         }
                         IconButton(onClick = onToggleBackendClick, enabled = !transitioning) {

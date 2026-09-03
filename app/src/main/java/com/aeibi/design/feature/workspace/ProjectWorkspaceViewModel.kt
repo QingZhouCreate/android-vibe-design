@@ -2,6 +2,7 @@ package com.aeibi.design.feature.workspace
 
 import android.content.Context
 import android.net.Uri
+import android.webkit.ConsoleMessage
 import android.webkit.WebResourceResponse
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -33,7 +35,8 @@ internal enum class PreviewStatus {
 internal data class PreviewUiState(
     val status: PreviewStatus = PreviewStatus.STOPPED,
     val url: Uri? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val consoleMessages: List<ConsoleMessage> = emptyList()
 )
 
 @Serializable
@@ -108,6 +111,20 @@ class ProjectWorkspaceViewModel internal constructor(
     }
 
     fun shouldInterceptRequest(uri: Uri): WebResourceResponse? = assetLoader.shouldInterceptRequest(uri)
+
+    internal fun recordConsoleMessage(message: ConsoleMessage) {
+        _previewUiState.update { state ->
+            if (state.status != PreviewStatus.RUNNING) {
+                state
+            } else {
+                state.copy(consoleMessages = state.consoleMessages + message)
+            }
+        }
+    }
+
+    internal fun clearConsoleMessages() {
+        _previewUiState.update { it.copy(consoleMessages = emptyList()) }
+    }
 
     private suspend fun startBackend(projectId: String): Uri {
         val workspace = projectRepository.workspaceDirectory(projectId).toPath().normalize()

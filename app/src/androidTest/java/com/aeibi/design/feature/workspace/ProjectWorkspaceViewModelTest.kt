@@ -1,6 +1,8 @@
 package com.aeibi.design.feature.workspace
 
 import android.content.Context
+import android.webkit.ConsoleMessage
+import android.webkit.ConsoleMessage.MessageLevel
 import androidx.test.core.app.ApplicationProvider
 import com.aeibi.design.data.projects.ProjectRepository
 import com.aeibi.design.feature.preview.LocalStaticAssetLoader
@@ -111,6 +113,61 @@ class ProjectWorkspaceViewModelTest {
         awaitStatus(fixture.viewModel, PreviewStatus.RUNNING)
         fixture.stop()
     }
+
+    @Test
+    fun consoleMessages_accumulateAllLevelsWhileRunningAndClear() {
+        val fixture = fixture()
+        File(fixture.workspace, "index.html").writeText("preview")
+        fixture.viewModel.startPreview(PROJECT_ID)
+        awaitStatus(fixture.viewModel, PreviewStatus.RUNNING)
+
+        fixture.viewModel.recordConsoleMessage(consoleMessage("JS: hello", MessageLevel.LOG))
+        fixture.viewModel.recordConsoleMessage(
+            consoleMessage("JS: ReferenceError: x is not defined", MessageLevel.ERROR)
+        )
+        fixture.viewModel.recordConsoleMessage(consoleMessage("JS: deprecation warning", MessageLevel.WARNING))
+
+        val state = fixture.viewModel.previewUiState.value
+        assertEquals(3, state.consoleMessages.size)
+        // 全级别保留
+        assertTrue(state.consoleMessages.any { it.message().contains("hello") })
+        assertTrue(state.consoleMessages.any { it.message().contains("ReferenceError") })
+        assertTrue(state.consoleMessages.any { it.message().contains("deprecation") })
+
+        fixture.viewModel.clearConsoleMessages()
+        assertTrue(fixture.viewModel.previewUiState.value.consoleMessages.isEmpty())
+        fixture.stop()
+    }
+
+    @Test
+    fun consoleMessages_ignoredWhenNotRunning() {
+        val fixture = fixture()
+        File(fixture.workspace, "index.html").writeText("preview")
+
+        fixture.viewModel.recordConsoleMessage(consoleMessage("JS: should be ignored", MessageLevel.ERROR))
+
+        assertTrue(fixture.viewModel.previewUiState.value.consoleMessages.isEmpty())
+        fixture.stop()
+    }
+
+    @Test
+    fun consoleMessages_areNotTruncated() {
+        val fixture = fixture()
+        File(fixture.workspace, "index.html").writeText("preview")
+        fixture.viewModel.startPreview(PROJECT_ID)
+        awaitStatus(fixture.viewModel, PreviewStatus.RUNNING)
+
+        fixture.viewModel.recordConsoleMessage(consoleMessage("important error", MessageLevel.ERROR))
+        repeat(60) { fixture.viewModel.recordConsoleMessage(consoleMessage("noise-$it", MessageLevel.LOG)) }
+
+        val state = fixture.viewModel.previewUiState.value
+        assertEquals(61, state.consoleMessages.size)
+        assertEquals("important error", state.consoleMessages.first().message())
+        fixture.stop()
+    }
+
+    private fun consoleMessage(text: String, level: MessageLevel): ConsoleMessage =
+        ConsoleMessage(text, "test.js", 1, level)
 
     private fun fixture(config: String? = null): Fixture {
         val projectsRoot = temporaryFolder.newFolder()
