@@ -10,7 +10,6 @@ import com.aeibi.design.data.versions.VersionSnapshotService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import jakarta.inject.Inject
-import java.io.File
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +19,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** 版本页状态：列表数据来自 [VersionSnapshotService]，演示修改用于人工体验快照/回滚。 */
+/** 版本页状态：列表数据来自 [VersionSnapshotService]。 */
 @HiltViewModel
 class ProjectVersionsViewModel internal constructor(
     private val projectRepository: ProjectRepository,
@@ -59,21 +58,6 @@ class ProjectVersionsViewModel internal constructor(
 
     fun restore(snapshotId: String, label: String) = operate {
         versionSnapshotService.restore(requireProjectId(), snapshotId, label)
-    }
-
-    /** 演示用：向 index.html 追加一行内容，制造一次可快照的工作区变更。 */
-    fun modifyDemoFile() {
-        val id = requireProjectId()
-        viewModelScope.launch {
-            _uiState.update { it.copy(busy = true, message = null) }
-            runCatching {
-                withContext(ioDispatcher) {
-                    val index = File(projectRepository.workspaceDirectory(id), DEMO_FILE)
-                    val content = if (index.isFile) index.readText() else DEMO_INITIAL_CONTENT
-                    index.writeText(content + DEMO_APPENDIX.format(System.currentTimeMillis()))
-                }
-            }.fold(onSuccess = { reload() }, onFailure = ::postError)
-        }
     }
 
     private fun operate(action: suspend () -> Unit) {
@@ -124,8 +108,5 @@ class ProjectVersionsViewModel internal constructor(
 
     private companion object {
         const val TAG = "ProjectVersionsVM"
-        const val DEMO_FILE = "index.html"
-        const val DEMO_INITIAL_CONTENT = "<!DOCTYPE html>\n<html><body>\n<h1>Demo</h1>\n"
-        const val DEMO_APPENDIX = "<p>demo change @%d</p>\n"
     }
 }

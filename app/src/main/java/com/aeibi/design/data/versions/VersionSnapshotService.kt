@@ -8,8 +8,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * 版本快照的应用级入口：校验项目状态、串行化存储操作，供 UI 与未来的
- * Agent 构建循环共同使用。独立于聊天流与任何 Agent 框架（issue #36 原则）。
+ * 版本快照的应用级入口：校验项目状态、串行化存储操作，供 UI 与 Agent 构建
+ * 循环共同使用。独立于聊天流与任何 Agent 框架（issue #36 原则）。
  *
  * git 后端的固有保障：提交/检出都是崩溃安全的落盘序列，恢复以新记录写入
  * 历史；项目删除时 `versions.git` 随项目目录一起消失，无需额外级联清理。
@@ -65,14 +65,20 @@ class VersionSnapshotService(
     }
 
     /**
-     * Agent 构建循环的挂钩点：每轮构建动作前调用（trigger=AUTO_BUILD）。
+     * Agent 构建轮的挂钩点：在真实执行文件修改前调用（trigger=AUTO_BUILD）。
+     * 每轮构建只应调用一次，接线在 KoogAgentRunner，位于首轮工具执行之前。
      *
-     * 当前调用点尚未接线：真实构建循环在上游 PR #37（沙箱文件工具）/#38（Koog
-     * Agent 会话）合入后于 PR-D 接线，届时构建执行器在每轮「执行」前调用本方法。
-     * 这是恢复保护链路目前唯一缺失的一环，接口已就绪并有测试覆盖。
+     * 只在工作区有未提交改动时落快照：干净工作区的 HEAD 本身就是回滚点，
+     * 再落一条只会制造空提交噪音。
      */
-    suspend fun snapshotBeforeBuildRound(projectId: String) =
-        createSnapshot(projectId, BUILD_ROUND_LABEL, VersionTrigger.AUTO_BUILD)
+    suspend fun snapshotBeforeBuildRound(projectId: String) = withContext(ioDispatcher) {
+        checkInitialized(projectId)
+        mutex.withLock {
+            if (storage.hasUncommittedChanges(projectId)) {
+                storage.snapshot(projectId, BUILD_ROUND_LABEL, VersionTrigger.AUTO_BUILD)
+            }
+        }
+    }
 
     private suspend fun isInitialized(projectId: String): Boolean =
         projectRepository.getProject(projectId)?.isInitialized == true

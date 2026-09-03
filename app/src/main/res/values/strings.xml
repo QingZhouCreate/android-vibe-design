@@ -90,8 +90,6 @@
     <string name="preview_console_empty">暂无控制台消息</string>
     <string name="versions_title">版本管理</string>
     <string name="versions_create_snapshot">创建快照</string>
-    <string name="versions_demo_modify">演示：修改 index.html</string>
-    <string name="versions_demo_hint">体验流程：「演示修改 → 创建快照」做两轮，然后恢复到较早的版本，再回到工作区刷新预览，就能看到第二次修改被撤销了。</string>
     <string name="versions_restore">恢复</string>
     <string name="versions_restore_confirm_title">恢复到此版本？</string>
     <string name="versions_restore_confirm_message">恢复会以一条新记录写入历史，当前内容不会丢失，可以随时再恢复回来。</string>

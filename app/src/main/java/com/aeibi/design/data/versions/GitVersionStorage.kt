@@ -1,6 +1,7 @@
 package com.aeibi.design.data.versions
 
 import com.aeibi.design.data.projects.ProjectRepository
+import com.aeibi.design.data.projects.recoverInterruptedReplacement
 import com.aeibi.design.data.projects.replaceWorkspaceDirectory
 import com.aeibi.design.data.versions.git.Libgit2Repository
 import java.io.File
@@ -79,11 +80,15 @@ class GitVersionStorage(
 
     private fun openRepository(projectId: String): Libgit2Repository {
         val workspace = projectRepository.workspaceDirectory(projectId)
-        val gitDir = File(workspace.parentFile, GIT_DIR)
-        // 进程中途被杀的残留物：git 索引锁与恢复暂存目录。单进程应用里不存在
-        // 并发写者，打开仓库时直接清除即可回到一致状态。
+        val projectDir = checkNotNull(workspace.parentFile) { "工作区目录异常: $workspace" }
+        val gitDir = File(projectDir, GIT_DIR)
+        // 进程中途被杀的残留物：被打断的整体替换（backup 回滚/清理）、git 索引锁
+        // 与恢复暂存目录。单进程应用里不存在并发写者，打开仓库时直接清除即可
+        // 回到一致状态。backup 回滚必须在 openOrInit 之前——后者会对缺失的
+        // 工作区静默建空目录，掩盖可恢复状态。
+        recoverInterruptedReplacement(projectDir)
         File(gitDir, "index.lock").delete()
-        File(workspace.parentFile, PENDING_DIR).deleteRecursively()
+        File(projectDir, PENDING_DIR).deleteRecursively()
         return Libgit2Repository.openOrInit(workspace, gitDir)
     }
 

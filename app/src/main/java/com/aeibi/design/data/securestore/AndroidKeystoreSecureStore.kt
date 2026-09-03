@@ -61,6 +61,10 @@ class AndroidKeystoreSecureStore @Inject constructor(@ApplicationContext context
         decrypt(file, key, getOrCreateKey())
     }
 
+    override suspend fun contains(key: String): Boolean = withContext(Dispatchers.IO) {
+        valueFile(key).isFile
+    }
+
     override suspend fun delete(key: String) = withContext(Dispatchers.IO) {
         AtomicFile(valueFile(key)).delete()
         Unit

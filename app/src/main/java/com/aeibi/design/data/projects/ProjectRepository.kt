@@ -110,6 +110,8 @@ class ProjectRepository(
             if (!pendingWorkspace.deleteRecursively() && pendingWorkspace.exists()) {
                 throw IOException("Could not clear pending workspace: ${pendingWorkspace.path}")
             }
+            // 重建意味着旧工作区（含整体替换残留的 backup）一律作废，清掉避免泄漏。
+            File(dir, BACKUP_WORKSPACE_DIR).deleteRecursively()
             writeMetadata(
                 dir,
                 existing.copy(

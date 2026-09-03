@@ -48,6 +48,8 @@ class VersionSnapshotServiceTest {
 
     private fun pendingDir(root: File, projectId: String) = File(File(root, projectId), "workspace.pending")
 
+    private fun backupDir(root: File, projectId: String) = File(File(root, projectId), "workspace.backup")
+
     @Test
     fun ensureInitialSnapshot_createsInitVersionOnce() = runTest {
         val root = tmp.newFolder()
@@ -174,17 +176,73 @@ class VersionSnapshotServiceTest {
     }
 
     @Test
-    fun snapshotBeforeBuildRound_recordsAutoBuildTrigger() = runTest {
+    fun snapshots_recoversWorkspaceAfterInterruptedReplacement() = runTest {
         val root = tmp.newFolder()
+        val repo = repository(root)
         val service = service(root)
         val id = newInitializedProject(root)
+        val workspace = repo.workspaceDirectory(id)
+        val projectDir = checkNotNull(workspace.parentFile)
+        service.ensureInitialSnapshot(id)
+        File(workspace, "index.html").writeText("v1")
+        service.createSnapshot(id, "v1")
 
+        // 模拟整体替换在「旧工作区已改名 backup、pending 尚未移入」之间被杀:
+        // 工作区缺失,backup 承载着替换前的内容(含未提交改动,git 历史里没有)。
+        check(workspace.renameTo(backupDir(root, id)))
+        pendingDir(root, id).apply {
+            mkdirs()
+            File(this, "half-checked-out").writeText("target")
+        }
+
+        // 下一次版本操作应先回滚 backup,再继续正常打开仓库。
+        assertEquals(2, service.snapshots(id).size)
+
+        assertEquals("v1", File(workspace, "index.html").readText())
+        assertFalse(backupDir(root, id).exists())
+        assertFalse(pendingDir(root, id).exists())
+    }
+
+    @Test
+    fun snapshots_cleansBackupAfterCompletedReplacement() = runTest {
+        val root = tmp.newFolder()
+        val repo = repository(root)
+        val service = service(root)
+        val id = newInitializedProject(root)
+        val workspace = repo.workspaceDirectory(id)
+        service.ensureInitialSnapshot(id)
+
+        // 模拟整体替换已完成但 backup 未及删除:工作区是新内容,backup 是旧内容。
+        check(workspace.renameTo(backupDir(root, id)))
+        check(workspace.mkdir())
+        File(workspace, "index.html").writeText("v2 已恢复")
+
+        service.snapshots(id)
+
+        assertFalse(backupDir(root, id).exists())
+        assertEquals("v2 已恢复", File(workspace, "index.html").readText())
+    }
+
+    @Test
+    fun snapshotBeforeBuildRound_recordsAutoBuildTrigger() = runTest {
+        val root = tmp.newFolder()
+        val repo = repository(root)
+        val service = service(root)
+        val id = newInitializedProject(root)
+        val workspace = repo.workspaceDirectory(id)
+        service.ensureInitialSnapshot(id)
+
+        // 干净工作区:HEAD 本身就是回滚点,构建前不应产生空提交。
+        service.snapshotBeforeBuildRound(id)
+        assertEquals(1, service.snapshots(id).size)
+
+        File(workspace, "index.html").writeText("未提交的改动")
         service.snapshotBeforeBuildRound(id)
 
         val versions = service.snapshots(id)
-        assertEquals(1, versions.size)
-        assertEquals(VersionTrigger.AUTO_BUILD, versions.single().trigger)
-        assertEquals("构建前快照", versions.single().label)
+        assertEquals(2, versions.size)
+        assertEquals(VersionTrigger.AUTO_BUILD, versions.first().trigger)
+        assertEquals("构建前快照", versions.first().label)
     }
 
     @Test

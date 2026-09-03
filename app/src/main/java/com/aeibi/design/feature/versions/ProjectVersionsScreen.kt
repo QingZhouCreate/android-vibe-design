@@ -2,7 +2,6 @@ package com.aeibi.design.feature.versions
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -19,7 +18,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -91,24 +89,10 @@ fun ProjectVersionsScreen(projectId: String, modifier: Modifier = Modifier, onBa
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-                Row {
-                    Button(
-                        onClick = { viewModel.createSnapshot(snapshotLabel) },
-                        enabled = !state.busy
-                    ) { Text(stringResource(R.string.versions_create_snapshot)) }
-
-                    OutlinedButton(
-                        onClick = { viewModel.modifyDemoFile() },
-                        enabled = !state.busy,
-                        modifier = Modifier.padding(start = MaterialTheme.spacing.sm)
-                    ) { Text(stringResource(R.string.versions_demo_modify)) }
-                }
-                Text(
-                    text = stringResource(R.string.versions_demo_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = MaterialTheme.spacing.sm)
-                )
+                Button(
+                    onClick = { viewModel.createSnapshot(snapshotLabel) },
+                    enabled = !state.busy
+                ) { Text(stringResource(R.string.versions_create_snapshot)) }
 
                 if (state.versions.isEmpty()) {
                     Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
