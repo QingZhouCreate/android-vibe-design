@@ -41,6 +41,19 @@ class ChatTimelineTest {
     }
 
     @Test
+    fun persistedThinkingDefaultsToCollapsedAndStreamingExpands() {
+        val persisted = ChatTimelineItem.Thinking("1:thinking:0", "Stored reasoning")
+        val streaming = ChatTimelineItem.Thinking(
+            id = "streaming-thinking-0",
+            text = "Live reasoning",
+            isStreaming = true
+        )
+
+        assertEquals(false, persisted.isStreaming)
+        assertEquals(true, streaming.isStreaming)
+    }
+
+    @Test
     fun toolCallAndResultAreShownAsSeparateTimelineItemsInOrder() = runTest {
         val repository = SessionRepository(InMemorySessionDao())
         repository.appendMessage(

@@ -64,6 +64,8 @@
     <string name="chat_cd_cancel">Stop</string>
     <string name="chat_agent_working">Working…</string>
     <string name="chat_agent_thinking">Thinking</string>
+    <string name="chat_cd_expand_thinking">Expand thinking section</string>
+    <string name="chat_cd_collapse_thinking">Collapse thinking section</string>
     <string name="chat_agent_cancelled">Task cancelled</string>
     <string name="chat_agent_failed">Agent execution failed</string>
     <string name="chat_tool_started">Running %1$s</string>

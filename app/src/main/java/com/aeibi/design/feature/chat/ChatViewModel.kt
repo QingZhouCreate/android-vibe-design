@@ -47,7 +47,7 @@ sealed interface ChatTimelineItem {
         val status: ChatMessageStatus = ChatMessageStatus.COMPLETE
     ) : ChatTimelineItem
 
-    data class Thinking(override val id: String, val text: String) : ChatTimelineItem
+    data class Thinking(override val id: String, val text: String, val isStreaming: Boolean = false) : ChatTimelineItem
 
     data class ToolCall(override val id: String, val name: String) : ChatTimelineItem
 

@@ -23,7 +23,11 @@ fun ChatScreen(
     val streamingTimeline = uiState.streamingResponses.flatMap { response ->
         listOfNotNull(
             response.thinkingText.takeIf(String::isNotBlank)?.let {
-                ChatTimelineItem.Thinking(id = "streaming-thinking-${response.id}", text = it)
+                ChatTimelineItem.Thinking(
+                    id = "streaming-thinking-${response.id}",
+                    text = it,
+                    isStreaming = true
+                )
             },
             response.text.takeIf(String::isNotBlank)?.let {
                 ChatTimelineItem.Message(
