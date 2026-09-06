@@ -140,6 +140,7 @@ class KoogAgentRunnerTest {
                     promptExecutor = executor,
                     model = TEST_MODEL,
                     workspaceTools = tools,
+                    runtimeLogsTool = RuntimeLogsTool("project", RuntimeLogStore()),
                     sessionRepository = SessionRepository(InMemorySessionDao()),
                     sessionId = "build-round-session",
                     turnId = "turn",
