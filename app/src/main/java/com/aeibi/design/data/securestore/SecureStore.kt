@@ -5,7 +5,5 @@ interface SecureStore {
 
     suspend fun get(key: String): String?
 
-    suspend fun contains(key: String): Boolean
-
     suspend fun delete(key: String)
 }

@@ -20,10 +20,12 @@ import ai.koog.prompt.message.RequestMetaInfo
 import ai.koog.prompt.streaming.StreamFrame
 import ai.koog.prompt.streaming.toMessageResponse
 import com.aeibi.design.ai.provider.AiProviderRegistry
+import com.aeibi.design.ai.tools.RuntimeLogsTool
 import com.aeibi.design.ai.tools.WorkspaceTools
 import com.aeibi.design.data.ai.AiProviderRepository
 import com.aeibi.design.data.projectfiles.ProjectFileTools
 import com.aeibi.design.data.projects.ProjectRepository
+import com.aeibi.design.data.runtimelogs.RuntimeLogStore
 import com.aeibi.design.data.sessions.AgentFailure
 import com.aeibi.design.data.sessions.MessageOrigin
 import com.aeibi.design.data.sessions.SessionRepository
@@ -50,6 +52,7 @@ class KoogAgentRunner @Inject constructor(
     private val providerRegistry: AiProviderRegistry,
     private val projectRepository: ProjectRepository,
     private val sessionRepository: SessionRepository,
+    private val runtimeLogStore: RuntimeLogStore,
     private val versionSnapshotService: VersionSnapshotService
 ) {
     suspend fun run(projectId: String, sessionId: String, input: String, onEvent: (AgentEvent) -> Unit): String {
@@ -57,8 +60,10 @@ class KoogAgentRunner @Inject constructor(
         val pendingText = StringBuilder()
         val pendingReasoning = StringBuilder()
         var executor: MultiLLMPromptExecutor? = null
+        var sessionRunStarted = false
         try {
-            sessionRepository.repairInterruptedToolCalls(sessionId)
+            sessionRepository.beginSessionRun(sessionId)
+            sessionRunStarted = true
             val modelMessages = sessionRepository.loadModelMessages(sessionId)
             sessionRepository.appendMessage(
                 sessionId,
@@ -85,6 +90,7 @@ class KoogAgentRunner @Inject constructor(
                 promptExecutor = createdExecutor,
                 model = provider.createModel(modelId),
                 workspaceTools = WorkspaceTools(ProjectFileTools(projectRepository.workspaceDirectory(projectId))),
+                runtimeLogsTool = RuntimeLogsTool(projectId, runtimeLogStore),
                 sessionRepository = sessionRepository,
                 sessionId = sessionId,
                 turnId = turnId,
@@ -134,7 +140,11 @@ class KoogAgentRunner @Inject constructor(
             )
             throw error
         } finally {
-            executor?.close()
+            try {
+                executor?.close()
+            } finally {
+                if (sessionRunStarted) sessionRepository.endSessionRun(sessionId)
+            }
         }
     }
 }
@@ -143,6 +153,7 @@ internal suspend fun executeKoogAgent(
     promptExecutor: PromptExecutor,
     model: LLModel,
     workspaceTools: WorkspaceTools,
+    runtimeLogsTool: RuntimeLogsTool,
     sessionRepository: SessionRepository,
     sessionId: String,
     turnId: String,
@@ -165,7 +176,10 @@ internal suspend fun executeKoogAgent(
             onAssistantMessageStored,
             beforeFirstToolRound
         ),
-        toolRegistry = ToolRegistry { tools(workspaceTools.asTools()) },
+        toolRegistry = ToolRegistry {
+            tools(workspaceTools.asTools())
+            tools(runtimeLogsTool.asTools())
+        },
         agentConfig = AIAgentConfig(
             prompt = prompt(sessionId) {
                 system(SYSTEM_PROMPT)
